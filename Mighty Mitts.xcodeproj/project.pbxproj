@@ -17,6 +17,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F2B78F862BA0F0C10078D268 /* Mighty-Mitts-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Mighty-Mitts-Info.plist"; sourceTree = SOURCE_ROOT; };
 		F2F156412B9E600300E39712 /* Mighty Mitts.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mighty Mitts.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F2F156442B9E600300E39712 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		F2F156452B9E600300E39712 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -61,6 +62,7 @@
 		F2F156432B9E600300E39712 /* Mighty Mitts */ = {
 			isa = PBXGroup;
 			children = (
+				F2B78F862BA0F0C10078D268 /* Mighty-Mitts-Info.plist */,
 				F2F156442B9E600300E39712 /* AppDelegate.h */,
 				F2F156452B9E600300E39712 /* AppDelegate.m */,
 				F2F1564A2B9E600700E39712 /* Assets.xcassets */,
@@ -287,7 +289,9 @@
 				DEVELOPMENT_TEAM = BPXZQ3R8TZ;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Mighty-Mitts-Info.plist";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Mighty Mitts needs to access Bluetooth to read the battery states from the keyboard peripheralss";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -313,7 +317,9 @@
 				DEVELOPMENT_TEAM = BPXZQ3R8TZ;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Mighty-Mitts-Info.plist";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Mighty Mitts needs to access Bluetooth to read the battery states from the keyboard peripheralss";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
