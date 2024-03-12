@@ -10,11 +10,9 @@
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
-        // Necessary to create the shared application
-        [NSApplication sharedApplication];
-        // Manually spin up our app delegate
-        AppDelegate* delegate = [[AppDelegate alloc] init];
-        [NSApp setDelegate:delegate];
+        // Manually spin up and attach our app delegate
+        [[NSApplication sharedApplication] setDelegate:[[AppDelegate alloc] init]];
+        // And kick off the event loop
         [NSApp run];
     }
     return NSApplicationMain(argc, argv);
