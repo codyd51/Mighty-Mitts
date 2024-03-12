@@ -14,7 +14,8 @@ However, macOS's native Bluetooth management UI will only display the battery le
 
 Mighty Mitts is a small app that lives in the menu bar and shows the battery state of each keyboard half. 
 
-![Mighty Mitts Menu Bar UI](./readme_images/mighty_mitts_ui.png)
+![Mighty Mitts Menu Bar UI](./readme_images/mighty_mitts_ui_v2.png)
+![Mighty Mitts Keyboard Selection UI](./readme_images/mighty_mitts_keyboard_selection.png)
 
 MIT license.
 
