@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		F2B78F882BA10CD10078D268 /* mighty_mitts_ui_v2.png in Resources */ = {isa = PBXBuildFile; fileRef = F2B78F872BA10CD10078D268 /* mighty_mitts_ui_v2.png */; };
 		F2B78F8A2BA10CDB0078D268 /* mighty_mitts_keyboard_selection.png in Resources */ = {isa = PBXBuildFile; fileRef = F2B78F892BA10CDB0078D268 /* mighty_mitts_keyboard_selection.png */; };
+		F2B78F8C2BA26D840078D268 /* mighty_mitts_keyboard_selection_v2.png in Resources */ = {isa = PBXBuildFile; fileRef = F2B78F8B2BA26D840078D268 /* mighty_mitts_keyboard_selection_v2.png */; };
 		F2F156462B9E600300E39712 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = F2F156452B9E600300E39712 /* AppDelegate.m */; };
 		F2F1564B2B9E600700E39712 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2F1564A2B9E600700E39712 /* Assets.xcassets */; };
 		F2F156502B9E600700E39712 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = F2F1564F2B9E600700E39712 /* main.m */; };
@@ -22,6 +23,7 @@
 		F2B78F862BA0F0C10078D268 /* Mighty-Mitts-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Mighty-Mitts-Info.plist"; sourceTree = SOURCE_ROOT; };
 		F2B78F872BA10CD10078D268 /* mighty_mitts_ui_v2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = mighty_mitts_ui_v2.png; sourceTree = "<group>"; };
 		F2B78F892BA10CDB0078D268 /* mighty_mitts_keyboard_selection.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = mighty_mitts_keyboard_selection.png; sourceTree = "<group>"; };
+		F2B78F8B2BA26D840078D268 /* mighty_mitts_keyboard_selection_v2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = mighty_mitts_keyboard_selection_v2.png; sourceTree = "<group>"; };
 		F2F156412B9E600300E39712 /* Mighty Mitts.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mighty Mitts.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F2F156442B9E600300E39712 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		F2F156452B9E600300E39712 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -79,6 +81,7 @@
 		F2F156612B9FD10E00E39712 /* readme_images */ = {
 			isa = PBXGroup;
 			children = (
+				F2B78F8B2BA26D840078D268 /* mighty_mitts_keyboard_selection_v2.png */,
 				F2B78F892BA10CDB0078D268 /* mighty_mitts_keyboard_selection.png */,
 				F2B78F872BA10CD10078D268 /* mighty_mitts_ui_v2.png */,
 				F2F156662B9FD15F00E39712 /* asweep.png */,
@@ -152,6 +155,7 @@
 				F2F156672B9FD15F00E39712 /* asweep.png in Resources */,
 				F2F156652B9FD12D00E39712 /* mighty_mitts_ui.png in Resources */,
 				F2B78F8A2BA10CDB0078D268 /* mighty_mitts_keyboard_selection.png in Resources */,
+				F2B78F8C2BA26D840078D268 /* mighty_mitts_keyboard_selection_v2.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -17,7 +17,7 @@ Mighty Mitts is a small app that lives in the menu bar and shows the battery sta
 <img alt="Mighty Mitts Menu Bar UI" src="./readme_images/mighty_mitts_ui_v2.png" width="800">
 
 
-<img alt="Mighty Mitts Keyboard Selection UI" src="./readme_images/mighty_mitts_keyboard_selection.png" width="800">
+<img alt="Mighty Mitts Keyboard Selection UI" src="./readme_images/mighty_mitts_keyboard_selection_v2.png" width="800">
 
 ### Running
 
