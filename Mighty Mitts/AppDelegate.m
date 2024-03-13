@@ -111,6 +111,7 @@
     // Add some extra meta controls to the menu
     [dropdown addItem:[NSMenuItem  separatorItem]];
     [dropdown addItemWithTitle:@"Manually Refresh Battery" action:@selector(initiateBatteryReading) keyEquivalent:@""];
+    [dropdown addItemWithTitle:@"Refresh Devices List" action:@selector(refreshAvailablePeripherals) keyEquivalent:@""];
     [dropdown addItem:[NSMenuItem  separatorItem]];
     [dropdown addItemWithTitle:@"Quit" action:@selector(quitButtonClicked) keyEquivalent:@""];
 - (void)quitButtonClicked {
