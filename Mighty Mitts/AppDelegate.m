@@ -107,6 +107,10 @@
     }
     // And cache all the peripherals that we saw, so we can map the button press back to a peripheral once the user makes a selection
     self.availablePeripherals = peripherals;
+    
+    // Add some extra meta controls to the menu
+    [dropdown addItem:[NSMenuItem  separatorItem]];
+    [dropdown addItemWithTitle:@"Manually Refresh Battery" action:@selector(initiateBatteryReading) keyEquivalent:@""];
     [dropdown addItem:[NSMenuItem  separatorItem]];
     [dropdown addItemWithTitle:@"Quit" action:@selector(quitButtonClicked) keyEquivalent:@""];
 - (void)quitButtonClicked {
@@ -114,6 +118,8 @@
     exit(0);
 }
 
+- (void)initiateBatteryReading {
+    [self.selectedKeyboardPeripheral discoverServices:@[[CBUUID UUIDWithString:BT_BATTERY_SERVICE_UUID]]];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
@@ -138,7 +144,7 @@
             self.menuIcon.button.title = @"Connecting...";
         }
         else if (self.selectedKeyboardPeripheral.state == CBPeripheralStateConnected) {
-            [self.selectedKeyboardPeripheral discoverServices:@[[CBUUID UUIDWithString:BT_BATTERY_SERVICE_UUID]]];
+            [self initiateBatteryReading];
         }
     }];
     [[NSRunLoop currentRunLoop] addTimer:self.updateTimer forMode:NSDefaultRunLoopMode];
