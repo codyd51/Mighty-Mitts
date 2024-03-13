@@ -103,11 +103,17 @@
     NSArray<CBPeripheral*>* peripherals = [self.bluetoothManager retrieveConnectedPeripheralsWithServices:serviceUuids];
     for (CBPeripheral* p in peripherals) {
         NSString* peripheralTitle = [NSString stringWithFormat:@"%@", p.name];
-        NSMenuItem* peripheralButton = [[NSMenuItem alloc] initWithTitle:peripheralTitle action:@selector(peripheralButtonClicked:) keyEquivalent:peripheralTitle];
-        [dropdown addItem:peripheralButton];
+        [dropdown addItemWithTitle:peripheralTitle action:@selector(peripheralButtonClicked:) keyEquivalent:@""];
     }
     // And cache all the peripherals that we saw, so we can map the button press back to a peripheral once the user makes a selection
     self.availablePeripherals = peripherals;
+    [dropdown addItem:[NSMenuItem  separatorItem]];
+    [dropdown addItemWithTitle:@"Quit" action:@selector(quitButtonClicked) keyEquivalent:@""];
+- (void)quitButtonClicked {
+    NSLog(@"Quit button clicked, exiting now.");
+    exit(0);
+}
+
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
