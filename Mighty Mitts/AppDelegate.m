@@ -48,6 +48,20 @@
     self.isNextUpdateForRightHalf = NO;
 }
 
+- (void)highlightSelectedPeripheralMenuButton {
+    // Update the dropdown menu so that the peripheral that's just been selected has a checkmark, and nothing else has a checkmark
+    // (We'll also implicitly deselect any peripheral that was previously selected).
+    for (NSMenuItem* item in self.menuIcon.menu.itemArray) {
+        // PT: I'm unsure whether this strategy will fail, i.e. if two peripherals can have exactly the same name
+        if ([item.title isEqualToString:self.selectedKeyboardPeripheral.name]) {
+            item.state = NSControlStateValueOn;
+        }
+        else {
+            item.state = NSControlStateValueOff;
+        }
+    }
+}
+
 - (void)peripheralButtonClicked:(NSMenuItem*)sender {
     // Clear out any state from a previously selected peripheral
     [self deselectPreviousPeripheral];
@@ -77,6 +91,7 @@
     self.selectedKeyboardPeripheral.delegate = self;
     // 'Connect' to the peripheral within the context of this app, so we can read the battery level (though the peripheral is already connected to this Mac)
     [self.bluetoothManager connectPeripheral:self.selectedKeyboardPeripheral options:nil];
+    [self highlightSelectedPeripheralMenuButton];
 }
 
 - (void)refreshAvailablePeripherals {
@@ -114,6 +129,11 @@
     [dropdown addItemWithTitle:@"Refresh Devices List" action:@selector(refreshAvailablePeripherals) keyEquivalent:@""];
     [dropdown addItem:[NSMenuItem  separatorItem]];
     [dropdown addItemWithTitle:@"Quit" action:@selector(quitButtonClicked) keyEquivalent:@""];
+    
+    // Ensure any selected peripheral still has the checkmark in the newly constructed menu
+    [self highlightSelectedPeripheralMenuButton];
+}
+
 - (void)quitButtonClicked {
     NSLog(@"Quit button clicked, exiting now.");
     exit(0);
