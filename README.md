@@ -21,7 +21,7 @@ Mighty Mitts is a small app that lives in the menu bar and shows the battery sta
 
 ### Running
 
-Download, unzip, and double-click the [prebuilt release](https://github.com/codyd51/Mighty-Mitts/releases/tag/v1.0). 
+Download, unzip, and double-click the [prebuilt release](https://github.com/codyd51/Mighty-Mitts/releases/tag/v2.0). 
 
 Alternatively, open the project in Xcode, build, and run. 
 
