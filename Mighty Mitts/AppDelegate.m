@@ -37,7 +37,7 @@
     // PT: I've found in practice that I need to set up the border each time I  update the button's title.
     // I assume, but haven't confirmed, that reassigning the button's title creates an entirely new button.
     self.menuIcon.button.layer.borderWidth = 0.8;
-    self.menuIcon.button.layer.borderColor = [[NSColor blackColor] CGColor];
+    self.menuIcon.button.layer.borderColor = [[NSColor textColor] CGColor];
     self.menuIcon.button.layer.cornerRadius = 4.0;
 }
 
