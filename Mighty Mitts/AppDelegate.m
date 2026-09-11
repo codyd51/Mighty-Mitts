@@ -27,6 +27,8 @@
 @property (nonatomic, retain) NSArray<CBPeripheral*>* availablePeripherals;
 @property int leftKeyboardBatteryPercent;
 @property int rightKeyboardBatteryPercent;
+@property BOOL hasLeftKeyboardBatteryReading;
+@property BOOL hasRightKeyboardBatteryReading;
 // PT: Quick hack to know whether this is the battery reading for the left or right side:
 // In my testing, this callback is always invoked with the left half's battery reading first, then the right half's.
 // So, just use flip flop state to track whether the current reading is for the left or right half.
@@ -36,8 +38,33 @@
 
 @implementation AppDelegate
 
+- (NSColor*)batteryColorForPercentage:(int)percentage {
+    if (percentage <= 10) {
+        return [NSColor systemRedColor];
+    }
+    if (percentage <= 20) {
+        return [NSColor systemOrangeColor];
+    }
+    return nil;
+}
+
 - (void)updateMenuButtonText {
-    self.menuIcon.button.title = [NSString stringWithFormat:@"%i%%  %i%%", self.leftKeyboardBatteryPercent, self.rightKeyboardBatteryPercent];
+    NSString* leftText = [NSString stringWithFormat:@"%i%%", self.leftKeyboardBatteryPercent];
+    NSString* rightText = [NSString stringWithFormat:@"%i%%", self.rightKeyboardBatteryPercent];
+    NSMutableAttributedString* title = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@  %@", leftText, rightText]];
+
+    NSColor* leftColor = self.hasLeftKeyboardBatteryReading ? [self batteryColorForPercentage:self.leftKeyboardBatteryPercent] : nil;
+    if (leftColor != nil) {
+        [title addAttribute:NSForegroundColorAttributeName value:leftColor range:NSMakeRange(0, leftText.length)];
+    }
+
+    NSColor* rightColor = self.hasRightKeyboardBatteryReading ? [self batteryColorForPercentage:self.rightKeyboardBatteryPercent] : nil;
+    if (rightColor != nil) {
+        NSUInteger rightTextOffset = leftText.length + 2;
+        [title addAttribute:NSForegroundColorAttributeName value:rightColor range:NSMakeRange(rightTextOffset, rightText.length)];
+    }
+
+    self.menuIcon.button.attributedTitle = title;
     // PT: I've found in practice that I need to set up the border each time I  update the button's title.
     // I assume, but haven't confirmed, that reassigning the button's title creates an entirely new button.
     self.menuIcon.button.layer.borderWidth = 0.8;
@@ -49,6 +76,8 @@
     self.selectedKeyboardPeripheral = nil;
     self.leftKeyboardBatteryPercent = 0;
     self.rightKeyboardBatteryPercent = 0;
+    self.hasLeftKeyboardBatteryReading = NO;
+    self.hasRightKeyboardBatteryReading = NO;
     self.isNextUpdateForRightHalf = NO;
 }
 
@@ -259,9 +288,11 @@
         // Update our modelling of the keyboard state
         if (self.isNextUpdateForRightHalf) {
             self.rightKeyboardBatteryPercent = batteryLevel;
+            self.hasRightKeyboardBatteryReading = YES;
         }
         else {
             self.leftKeyboardBatteryPercent = batteryLevel;
+            self.hasLeftKeyboardBatteryReading = YES;
         }
         
         // Update the UI
