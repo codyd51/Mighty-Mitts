@@ -7,6 +7,7 @@
 
 #import "AppDelegate.h"
 #import <CoreBluetooth/CoreBluetooth.h>
+#import <ServiceManagement/ServiceManagement.h>
 
 // Ref: https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/Assigned_Numbers.pdf?v=1710192432890
 #define BT_BATTERY_SERVICE_UUID @"0x180F"
@@ -194,6 +195,8 @@
     [dropdown addItemWithTitle:@"Manually Refresh Battery" action:@selector(initiateBatteryReading) keyEquivalent:@""];
     [dropdown addItemWithTitle:@"Refresh Devices List" action:@selector(refreshAvailablePeripherals) keyEquivalent:@""];
     [dropdown addItem:[NSMenuItem  separatorItem]];
+    NSMenuItem* launchAtLoginItem = [dropdown addItemWithTitle:@"Launch at Login" action:@selector(toggleLaunchAtLogin:) keyEquivalent:@""];
+    launchAtLoginItem.state = [SMAppService mainAppService].status == SMAppServiceStatusEnabled ? NSControlStateValueOn : NSControlStateValueOff;
     [dropdown addItemWithTitle:@"Quit" action:@selector(quitButtonClicked) keyEquivalent:@""];
     
     // Ensure any selected peripheral still has the checkmark in the newly constructed menu
@@ -202,6 +205,28 @@
 
 - (void)menuNeedsUpdate:(NSMenu *)menu {
     [self refreshAvailablePeripherals];
+}
+
+- (void)toggleLaunchAtLogin:(NSMenuItem*)sender {
+    SMAppService* loginService = [SMAppService mainAppService];
+    NSError* error = nil;
+    BOOL succeeded;
+
+    if (loginService.status == SMAppServiceStatusEnabled) {
+        succeeded = [loginService unregisterAndReturnError:&error];
+    }
+    else {
+        succeeded = [loginService registerAndReturnError:&error];
+    }
+
+    if (!succeeded) {
+        NSAlert* errorAlert = [[NSAlert alloc] init];
+        errorAlert.messageText = @"Could Not Change Launch at Login";
+        errorAlert.informativeText = error.localizedDescription;
+        [errorAlert runModal];
+    }
+
+    sender.state = loginService.status == SMAppServiceStatusEnabled ? NSControlStateValueOn : NSControlStateValueOff;
 }
 
 - (void)quitButtonClicked {
