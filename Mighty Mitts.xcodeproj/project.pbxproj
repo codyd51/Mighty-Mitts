@@ -301,9 +301,8 @@
 				DEVELOPMENT_TEAM = BPXZQ3R8TZ;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Mighty-Mitts-Info.plist";
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Mighty Mitts needs to access Bluetooth to read the battery states from the keyboard peripheralss";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Mighty Mitts needs Bluetooth access to read the keyboard batteries.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -329,9 +328,8 @@
 				DEVELOPMENT_TEAM = BPXZQ3R8TZ;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Mighty-Mitts-Info.plist";
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Mighty Mitts needs to access Bluetooth to read the battery states from the keyboard peripheralss";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Mighty Mitts needs Bluetooth access to read the keyboard batteries.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
