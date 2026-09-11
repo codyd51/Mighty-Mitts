@@ -23,6 +23,7 @@
 @interface AppDelegate () <CBCentralManagerDelegate, CBPeripheralDelegate, NSMenuDelegate>
 @property (nonatomic, retain) NSStatusItem* menuIcon;
 @property (nonatomic, retain) NSTimer* updateTimer;
+@property (nonatomic, retain) NSTimer* reconnectObservationTimer;
 @property (nonatomic, retain) CBCentralManager* bluetoothManager;
 @property (nonatomic, retain) CBPeripheral* selectedKeyboardPeripheral;
 @property (nonatomic, retain) NSArray<CBPeripheral*>* availablePeripherals;
@@ -97,6 +98,33 @@
     // Connect within this app so that it can discover and read the battery service.
     [self.bluetoothManager connectPeripheral:self.selectedKeyboardPeripheral options:nil];
     [self highlightSelectedPeripheralMenuButton];
+}
+
+- (void)checkForSystemReconnect {
+    NSString* selectedIdentifier = [[NSUserDefaults standardUserDefaults] stringForKey:SELECTED_KEYBOARD_IDENTIFIER_DEFAULTS_KEY];
+    NSArray<CBPeripheral*>* connectedPeripherals = [self.bluetoothManager retrieveConnectedPeripheralsWithServices:@[[CBUUID UUIDWithString:BT_BATTERY_SERVICE_UUID]]];
+
+    for (CBPeripheral* peripheral in connectedPeripherals) {
+        if ([peripheral.identifier.UUIDString isEqualToString:selectedIdentifier]) {
+            [self.reconnectObservationTimer invalidate];
+            self.reconnectObservationTimer = nil;
+            [self selectPeripheral:peripheral persistSelection:NO];
+            return;
+        }
+    }
+}
+
+- (void)startWatchingForSystemReconnect {
+    if (self.reconnectObservationTimer != nil) {
+        return;
+    }
+
+    self.reconnectObservationTimer = [NSTimer scheduledTimerWithTimeInterval:1.0
+                                                                      target:self
+                                                                    selector:@selector(checkForSystemReconnect)
+                                                                    userInfo:nil
+                                                                     repeats:YES];
+    [self checkForSystemReconnect];
 }
 
 - (void)highlightSelectedPeripheralMenuButton {
@@ -180,14 +208,11 @@
             break;
         }
     }
-    if (restoredPeripheral == nil && selectedIdentifier != nil) {
-        NSUUID* selectedUUID = [[NSUUID alloc] initWithUUIDString:selectedIdentifier];
-        if (selectedUUID != nil) {
-            restoredPeripheral = [self.bluetoothManager retrievePeripheralsWithIdentifiers:@[selectedUUID]].firstObject;
-        }
-    }
     if (restoredPeripheral != nil && restoredPeripheral != self.selectedKeyboardPeripheral) {
         [self selectPeripheral:restoredPeripheral persistSelection:NO];
+    }
+    else if (restoredPeripheral == nil && selectedIdentifier != nil) {
+        [self startWatchingForSystemReconnect];
     }
     
     // Add some extra meta controls to the menu
@@ -252,9 +277,8 @@
             self.menuIcon.button.title = @"No keyboard selected.";
         }
         else if (self.selectedKeyboardPeripheral.state == CBPeripheralStateDisconnected) {
-            self.menuIcon.button.title = @"Disconnected.";
-            // Try to reconnect
-            [self.bluetoothManager connectPeripheral:self.selectedKeyboardPeripheral options:nil];
+            self.menuIcon.button.title = @"No keyboard selected.";
+            [self startWatchingForSystemReconnect];
         }
         else if (self.selectedKeyboardPeripheral.state == CBPeripheralStateConnecting) {
             self.menuIcon.button.title = @"Connecting...";
@@ -278,6 +302,8 @@
 
 - (void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral {
     NSLog(@"Connected to peripheral: %@", peripheral.name);
+    [self.reconnectObservationTimer invalidate];
+    self.reconnectObservationTimer = nil;
     [self refreshAvailablePeripherals];
     // Now that we're connected to the keyboard we'll be able to read its battery levels
     // Invoke main refresh task, which will kick this off.
@@ -287,6 +313,7 @@
 - (void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error {
     NSLog(@"Disconnected from peripheral: %@", peripheral.name);
     self.menuIcon.button.title = @"No keyboard selected.";
+    [self startWatchingForSystemReconnect];
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didDiscoverServices:(NSError *)error {
