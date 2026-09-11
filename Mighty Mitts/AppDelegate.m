@@ -259,6 +259,11 @@
     [self.updateTimer fire];
 }
 
+- (void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error {
+    NSLog(@"Disconnected from peripheral: %@", peripheral.name);
+    self.menuIcon.button.title = @"No keyboard selected.";
+}
+
 - (void)peripheral:(CBPeripheral *)peripheral didDiscoverServices:(NSError *)error {
     for (CBService *service in peripheral.services) {
         if ([service.UUID isEqual:[CBUUID UUIDWithString:BT_BATTERY_SERVICE_UUID]]) {
