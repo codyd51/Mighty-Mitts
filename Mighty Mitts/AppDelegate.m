@@ -105,10 +105,16 @@
 }
 
 - (void)refreshAvailablePeripherals {
-    // Discard and recreate the dropdown menu each time we read the available peripherals
-    NSMenu* dropdown = [[NSMenu alloc] init];
-    dropdown.autoenablesItems = YES;
-    self.menuIcon.menu = dropdown;
+    NSMenu* dropdown = self.menuIcon.menu;
+    if (dropdown == nil) {
+        dropdown = [[NSMenu alloc] init];
+        dropdown.autoenablesItems = YES;
+        dropdown.delegate = self;
+        self.menuIcon.menu = dropdown;
+    }
+    else {
+        [dropdown removeAllItems];
+    }
     
     // Bold title view, drawn directly with a text view as the 'section headers' provided by NSMenu were a bit too gray for a call to action
     NSMenuItem* title = [[NSMenuItem alloc] init];
@@ -163,6 +169,10 @@
     
     // Ensure any selected peripheral still has the checkmark in the newly constructed menu
     [self highlightSelectedPeripheralMenuButton];
+}
+
+- (void)menuNeedsUpdate:(NSMenu *)menu {
+    [self refreshAvailablePeripherals];
 }
 
 - (void)quitButtonClicked {
