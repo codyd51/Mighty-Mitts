@@ -15,7 +15,11 @@
 // How often we should ping the keyboard for updates, in seconds
 #define BATTERY_LEVEL_FETCH_INTERVAL_SECONDS 60
 
-@interface AppDelegate () <CBCentralManagerDelegate, CBPeripheralDelegate>
+// Persist the CoreBluetooth identifier rather than the peripheral name. Names are
+// not guaranteed to be unique, while the identifier is stable for a paired device.
+#define SELECTED_KEYBOARD_IDENTIFIER_DEFAULTS_KEY @"SelectedKeyboardPeripheralIdentifier"
+
+@interface AppDelegate () <CBCentralManagerDelegate, CBPeripheralDelegate, NSMenuDelegate>
 @property (nonatomic, retain) NSStatusItem* menuIcon;
 @property (nonatomic, retain) NSTimer* updateTimer;
 @property (nonatomic, retain) CBCentralManager* bluetoothManager;
@@ -48,12 +52,28 @@
     self.isNextUpdateForRightHalf = NO;
 }
 
+- (void)selectPeripheral:(CBPeripheral*)peripheral persistSelection:(BOOL)persistSelection {
+    [self deselectPreviousPeripheral];
+
+    self.selectedKeyboardPeripheral = peripheral;
+    self.selectedKeyboardPeripheral.delegate = self;
+
+    if (persistSelection) {
+        [[NSUserDefaults standardUserDefaults] setObject:peripheral.identifier.UUIDString
+                                                  forKey:SELECTED_KEYBOARD_IDENTIFIER_DEFAULTS_KEY];
+    }
+
+    NSLog(@"Selected keyboard peripheral: %@", self.selectedKeyboardPeripheral.name);
+    // Connect within this app so that it can discover and read the battery service.
+    [self.bluetoothManager connectPeripheral:self.selectedKeyboardPeripheral options:nil];
+    [self highlightSelectedPeripheralMenuButton];
+}
+
 - (void)highlightSelectedPeripheralMenuButton {
     // Update the dropdown menu so that the peripheral that's just been selected has a checkmark, and nothing else has a checkmark
     // (We'll also implicitly deselect any peripheral that was previously selected).
     for (NSMenuItem* item in self.menuIcon.menu.itemArray) {
-        // PT: I'm unsure whether this strategy will fail, i.e. if two peripherals can have exactly the same name
-        if ([item.title isEqualToString:self.selectedKeyboardPeripheral.name]) {
+        if ([item.representedObject isEqual:self.selectedKeyboardPeripheral.identifier.UUIDString]) {
             item.state = NSControlStateValueOn;
         }
         else {
@@ -63,14 +83,9 @@
 }
 
 - (void)peripheralButtonClicked:(NSMenuItem*)sender {
-    // Clear out any state from a previously selected peripheral
-    [self deselectPreviousPeripheral];
-    
-    // Currently, we only have the title of the menu button that was clicked.
-    // This should directly correspond to the name of one of the Bluetooth peripherals that we saw earlier, so pull out the
-    // matching peripheral.
+    // Map the menu item back to a peripheral by its stable CoreBluetooth identifier.
     NSArray<CBPeripheral*>* foundPeripherals = [self.availablePeripherals filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id  _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
-        return [((CBPeripheral*)evaluatedObject).name isEqualToString:sender.title];
+        return [((CBPeripheral*)evaluatedObject).identifier.UUIDString isEqualToString:sender.representedObject];
     }]];
     if (foundPeripherals.count != 1) {
         // PT: Unfortunately we can't use +[NSException raise...] here, as AppKit catches exceptions thrown within a menu bar item callback.
@@ -86,12 +101,7 @@
         return;
     }
     
-    self.selectedKeyboardPeripheral = foundPeripherals[0];
-    NSLog(@"Selected keyboard peripheral: %@", self.selectedKeyboardPeripheral.name);
-    self.selectedKeyboardPeripheral.delegate = self;
-    // 'Connect' to the peripheral within the context of this app, so we can read the battery level (though the peripheral is already connected to this Mac)
-    [self.bluetoothManager connectPeripheral:self.selectedKeyboardPeripheral options:nil];
-    [self highlightSelectedPeripheralMenuButton];
+    [self selectPeripheral:foundPeripherals[0] persistSelection:YES];
 }
 
 - (void)refreshAvailablePeripherals {
@@ -118,10 +128,31 @@
     NSArray<CBPeripheral*>* peripherals = [self.bluetoothManager retrieveConnectedPeripheralsWithServices:serviceUuids];
     for (CBPeripheral* p in peripherals) {
         NSString* peripheralTitle = [NSString stringWithFormat:@"%@", p.name];
-        [dropdown addItemWithTitle:peripheralTitle action:@selector(peripheralButtonClicked:) keyEquivalent:@""];
+        NSMenuItem* peripheralItem = [dropdown addItemWithTitle:peripheralTitle action:@selector(peripheralButtonClicked:) keyEquivalent:@""];
+        peripheralItem.representedObject = p.identifier.UUIDString;
     }
     // And cache all the peripherals that we saw, so we can map the button press back to a peripheral once the user makes a selection
     self.availablePeripherals = peripherals;
+
+    // Bluetooth can power down while the Mac sleeps. CoreBluetooth may then give
+    // us a new peripheral object, so restore the user's choice by UUID.
+    NSString* selectedIdentifier = [[NSUserDefaults standardUserDefaults] stringForKey:SELECTED_KEYBOARD_IDENTIFIER_DEFAULTS_KEY];
+    CBPeripheral* restoredPeripheral = nil;
+    for (CBPeripheral* peripheral in peripherals) {
+        if ([peripheral.identifier.UUIDString isEqualToString:selectedIdentifier]) {
+            restoredPeripheral = peripheral;
+            break;
+        }
+    }
+    if (restoredPeripheral == nil && selectedIdentifier != nil) {
+        NSUUID* selectedUUID = [[NSUUID alloc] initWithUUIDString:selectedIdentifier];
+        if (selectedUUID != nil) {
+            restoredPeripheral = [self.bluetoothManager retrievePeripheralsWithIdentifiers:@[selectedUUID]].firstObject;
+        }
+    }
+    if (restoredPeripheral != nil && restoredPeripheral != self.selectedKeyboardPeripheral) {
+        [self selectPeripheral:restoredPeripheral persistSelection:NO];
+    }
     
     // Add some extra meta controls to the menu
     [dropdown addItem:[NSMenuItem  separatorItem]];
@@ -183,6 +214,7 @@
 
 - (void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral {
     NSLog(@"Connected to peripheral: %@", peripheral.name);
+    [self refreshAvailablePeripherals];
     // Now that we're connected to the keyboard we'll be able to read its battery levels
     // Invoke main refresh task, which will kick this off.
     [self.updateTimer fire];
