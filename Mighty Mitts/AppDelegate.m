@@ -15,7 +15,7 @@
 // How often we should ping the keyboard for updates, in seconds
 #define BATTERY_LEVEL_FETCH_INTERVAL_SECONDS 60
 
-@interface AppDelegate () <CBCentralManagerDelegate, CBPeripheralDelegate>
+@interface AppDelegate () <CBCentralManagerDelegate, CBPeripheralDelegate, NSMenuDelegate>
 @property (nonatomic, retain) NSStatusItem* menuIcon;
 @property (nonatomic, retain) NSTimer* updateTimer;
 @property (nonatomic, retain) CBCentralManager* bluetoothManager;
@@ -52,8 +52,8 @@
     // Update the dropdown menu so that the peripheral that's just been selected has a checkmark, and nothing else has a checkmark
     // (We'll also implicitly deselect any peripheral that was previously selected).
     for (NSMenuItem* item in self.menuIcon.menu.itemArray) {
-        // PT: I'm unsure whether this strategy will fail, i.e. if two peripherals can have exactly the same name
-        if ([item.title isEqualToString:self.selectedKeyboardPeripheral.name]) {
+        CBPeripheral* itemPeripheral = item.representedObject;
+        if (itemPeripheral && self.selectedKeyboardPeripheral && [itemPeripheral.identifier isEqual:self.selectedKeyboardPeripheral.identifier]) {
             item.state = NSControlStateValueOn;
         }
         else {
@@ -66,27 +66,11 @@
     // Clear out any state from a previously selected peripheral
     [self deselectPreviousPeripheral];
     
-    // Currently, we only have the title of the menu button that was clicked.
-    // This should directly correspond to the name of one of the Bluetooth peripherals that we saw earlier, so pull out the
-    // matching peripheral.
-    NSArray<CBPeripheral*>* foundPeripherals = [self.availablePeripherals filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id  _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
-        return [((CBPeripheral*)evaluatedObject).name isEqualToString:sender.title];
-    }]];
-    if (foundPeripherals.count != 1) {
-        // PT: Unfortunately we can't use +[NSException raise...] here, as AppKit catches exceptions thrown within a menu bar item callback.
-        // Instead, present the error directly to the user, then exit.
-        NSAlert* errorAlert = [[NSAlert alloc] init];
-        errorAlert.messageText = @"Mighty Mitts Consistency Error";
-        NSArray<NSString*>* matchedTitles = [foundPeripherals valueForKey:@"name"];
-        errorAlert.informativeText = [NSString stringWithFormat:@"Expected to find exactly 1 peripheral in our cached connections list that matches the title of the pressed button (\"%@\"), but found: %@", sender.title, matchedTitles];
-        [errorAlert addButtonWithTitle:@"Quit"];
-        [errorAlert runModal];
-        exit(1);
-        // Just for semantics - we're no longer executing.
+    CBPeripheral* peripheral = sender.representedObject;
+    if (!peripheral) {
         return;
     }
-    
-    self.selectedKeyboardPeripheral = foundPeripherals[0];
+    self.selectedKeyboardPeripheral = peripheral;
     NSLog(@"Selected keyboard peripheral: %@", self.selectedKeyboardPeripheral.name);
     self.selectedKeyboardPeripheral.delegate = self;
     // 'Connect' to the peripheral within the context of this app, so we can read the battery level (though the peripheral is already connected to this Mac)
@@ -95,10 +79,15 @@
 }
 
 - (void)refreshAvailablePeripherals {
-    // Discard and recreate the dropdown menu each time we read the available peripherals
-    NSMenu* dropdown = [[NSMenu alloc] init];
-    dropdown.autoenablesItems = YES;
-    self.menuIcon.menu = dropdown;
+    // Rebuild the contents of the (persistent) dropdown menu each time we read the available peripherals
+    NSMenu* dropdown = self.menuIcon.menu;
+    if (!dropdown) {
+        dropdown = [[NSMenu alloc] init];
+        dropdown.autoenablesItems = YES;
+        dropdown.delegate = self;
+        self.menuIcon.menu = dropdown;
+    }
+    [dropdown removeAllItems];
     
     // Bold title view, drawn directly with a text view as the 'section headers' provided by NSMenu were a bit too gray for a call to action
     NSMenuItem* title = [[NSMenuItem alloc] init];
@@ -115,10 +104,27 @@
     
     // Create a button corresponding to each connected peripheral that exposes the BLE Battery Service
     NSArray<CBUUID*>* serviceUuids = @[[CBUUID UUIDWithString:BT_BATTERY_SERVICE_UUID]];
-    NSArray<CBPeripheral*>* peripherals = [self.bluetoothManager retrieveConnectedPeripheralsWithServices:serviceUuids];
+    NSMutableArray<CBPeripheral*>* peripherals = [[self.bluetoothManager retrieveConnectedPeripheralsWithServices:serviceUuids] mutableCopy];
+    // A keyboard that's momentarily disconnected (e.g. asleep) isn't reported as connected by the system.
+    // Keep our selected keyboard in the list so it doesn't vanish, and so we keep trying to reconnect to it.
+    CBPeripheral* selected = self.selectedKeyboardPeripheral;
+    if (selected) {
+        BOOL alreadyListed = NO;
+        for (CBPeripheral* p in peripherals) {
+            if ([p.identifier isEqual:selected.identifier]) { alreadyListed = YES; break; }
+        }
+        if (!alreadyListed) {
+            [peripherals addObject:selected];
+        }
+    }
     for (CBPeripheral* p in peripherals) {
-        NSString* peripheralTitle = [NSString stringWithFormat:@"%@", p.name];
-        [dropdown addItemWithTitle:peripheralTitle action:@selector(peripheralButtonClicked:) keyEquivalent:@""];
+        NSString* peripheralTitle = p.name ?: [NSString stringWithFormat:@"Unnamed keyboard (%@)", [p.identifier.UUIDString substringToIndex:8]];
+        NSMenuItem* item = [dropdown addItemWithTitle:peripheralTitle action:@selector(peripheralButtonClicked:) keyEquivalent:@""];
+        item.representedObject = p;
+    }
+    if (peripherals.count == 0) {
+        NSMenuItem* none = [dropdown addItemWithTitle:@"No keyboards found" action:nil keyEquivalent:@""];
+        none.enabled = NO;
     }
     // And cache all the peripherals that we saw, so we can map the button press back to a peripheral once the user makes a selection
     self.availablePeripherals = peripherals;
@@ -132,6 +138,13 @@
     
     // Ensure any selected peripheral still has the checkmark in the newly constructed menu
     [self highlightSelectedPeripheralMenuButton];
+}
+
+- (void)menuNeedsUpdate:(NSMenu *)menu {
+    // Always show a fresh devices list when the user opens the menu
+    if (self.bluetoothManager.state == CBManagerStatePoweredOn) {
+        [self refreshAvailablePeripherals];
+    }
 }
 
 - (void)quitButtonClicked {
@@ -153,6 +166,9 @@
     
     // Periodic job to refresh the UI / kick the tires
     self.updateTimer = [NSTimer timerWithTimeInterval:BATTERY_LEVEL_FETCH_INTERVAL_SECONDS repeats:YES block:^(NSTimer* timer){
+        if (self.bluetoothManager.state == CBManagerStatePoweredOn) {
+            [self refreshAvailablePeripherals];
+        }
         if (!self.selectedKeyboardPeripheral) {
             self.menuIcon.button.title = @"No keyboard selected.";
         }
@@ -176,9 +192,23 @@
         [self refreshAvailablePeripherals];
     }
     else {
-        // In any other Bluetooth state, just clear our saved BT peripheral as it's irrelevant
-        self.selectedKeyboardPeripheral = nil;
+        // In any other Bluetooth state, clear our saved BT peripheral as it's irrelevant
+        [self deselectPreviousPeripheral];
+        self.menuIcon.button.title = @"Bluetooth unavailable.";
     }
+}
+
+- (void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error {
+    NSLog(@"Disconnected from peripheral: %@ (%@)", peripheral.name, error);
+    if ([peripheral.identifier isEqual:self.selectedKeyboardPeripheral.identifier]) {
+        self.menuIcon.button.title = @"Disconnected.";
+        // Pending connects don't time out, so this will complete whenever the keyboard comes back
+        [self.bluetoothManager connectPeripheral:peripheral options:nil];
+    }
+}
+
+- (void)centralManager:(CBCentralManager *)central didFailToConnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error {
+    NSLog(@"Failed to connect to peripheral: %@ (%@)", peripheral.name, error);
 }
 
 - (void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral {
