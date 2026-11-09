@@ -12,6 +12,8 @@
 #define BT_BATTERY_SERVICE_UUID @"0x180F"
 #define BT_BATTERY_LEVEL_CHARACTERISTIC @"0x2A19"
 
+#define LAST_KEYBOARD_DEFAULTS_KEY @"LastSelectedKeyboardIdentifier"
+
 // How often we should ping the keyboard for updates, in seconds
 #define BATTERY_LEVEL_FETCH_INTERVAL_SECONDS 60
 
@@ -62,11 +64,10 @@
     }
 }
 
-- (void)peripheralButtonClicked:(NSMenuItem*)sender {
+- (void)selectPeripheral:(CBPeripheral*)peripheral {
     // Clear out any state from a previously selected peripheral
     [self deselectPreviousPeripheral];
     
-    CBPeripheral* peripheral = sender.representedObject;
     if (!peripheral) {
         return;
     }
@@ -78,7 +79,35 @@
     [self highlightSelectedPeripheralMenuButton];
 }
 
+- (void)peripheralButtonClicked:(NSMenuItem*)sender {
+    CBPeripheral* peripheral = sender.representedObject;
+    if (!peripheral) {
+        return;
+    }
+    // Remember the choice, so we can auto-select this keyboard if it disappears and comes back (or after a relaunch)
+    [[NSUserDefaults standardUserDefaults] setObject:peripheral.identifier.UUIDString forKey:LAST_KEYBOARD_DEFAULTS_KEY];
+    [self selectPeripheral:peripheral];
+}
+
+- (void)restoreLastSelectedPeripheralIfNeeded {
+    if (self.selectedKeyboardPeripheral) {
+        return;
+    }
+    NSString* savedId = [[NSUserDefaults standardUserDefaults] stringForKey:LAST_KEYBOARD_DEFAULTS_KEY];
+    NSUUID* uuid = savedId ? [[NSUUID alloc] initWithUUIDString:savedId] : nil;
+    if (!uuid) {
+        return;
+    }
+    // This works even if the keyboard isn't currently connected; the pending connect completes when it returns
+    CBPeripheral* peripheral = [[self.bluetoothManager retrievePeripheralsWithIdentifiers:@[uuid]] firstObject];
+    if (peripheral) {
+        NSLog(@"Auto-selecting previously chosen keyboard: %@", peripheral.name);
+        [self selectPeripheral:peripheral];
+    }
+}
+
 - (void)refreshAvailablePeripherals {
+    [self restoreLastSelectedPeripheralIfNeeded];
     // Rebuild the contents of the (persistent) dropdown menu each time we read the available peripherals
     NSMenu* dropdown = self.menuIcon.menu;
     if (!dropdown) {
