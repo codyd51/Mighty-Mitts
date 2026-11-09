@@ -12,6 +12,10 @@
 #define BT_BATTERY_SERVICE_UUID @"0x180F"
 #define BT_BATTERY_LEVEL_CHARACTERISTIC @"0x2A19"
 
+// Device Information service, and the characteristics we display
+#define BT_DEVICE_INFO_SERVICE_UUID @"0x180A"
+#define BT_PNP_ID_CHARACTERISTIC @"0x2A50"
+
 #define LAST_KEYBOARD_DEFAULTS_KEY @"LastSelectedKeyboardIdentifier"
 
 // How often we should ping the keyboard for updates, in seconds
@@ -23,6 +27,9 @@
 @property (nonatomic, retain) CBCentralManager* bluetoothManager;
 @property (nonatomic, retain) CBPeripheral* selectedKeyboardPeripheral;
 @property (nonatomic, retain) NSArray<CBPeripheral*>* availablePeripherals;
+// Details about the selected peripheral, keyed by characteristic UUID string (from the Device Information service)
+@property (nonatomic, retain) NSMutableDictionary<NSString*, NSString*>* deviceInfo;
+@property (nonatomic, retain) NSNumber* signalStrength;
 @property int leftKeyboardBatteryPercent;
 @property int rightKeyboardBatteryPercent;
 // PT: Quick hack to know whether this is the battery reading for the left or right side:
@@ -45,6 +52,8 @@
 
 - (void)deselectPreviousPeripheral {
     self.selectedKeyboardPeripheral = nil;
+    self.deviceInfo = [NSMutableDictionary dictionary];
+    self.signalStrength = nil;
     self.leftKeyboardBatteryPercent = 0;
     self.rightKeyboardBatteryPercent = 0;
     self.isNextUpdateForRightHalf = NO;
@@ -106,6 +115,36 @@
     }
 }
 
+- (NSMenu*)buildDetailsSubmenu {
+    CBPeripheral* peripheral = self.selectedKeyboardPeripheral;
+    NSMenu* submenu = [[NSMenu alloc] init];
+    NSMutableArray<NSString*>* lines = [NSMutableArray array];
+    void (^add)(NSString*, NSString*) = ^(NSString* label, NSString* value) {
+        if (value.length > 0) {
+            [lines addObject:[NSString stringWithFormat:@"%@: %@", label, value]];
+        }
+    };
+    NSString* stateName = @"Disconnected";
+    if (peripheral.state == CBPeripheralStateConnected) stateName = @"Connected";
+    else if (peripheral.state == CBPeripheralStateConnecting) stateName = @"Connecting";
+    add(@"Name", peripheral.name);
+    add(@"State", stateName);
+    add(@"Signal", self.signalStrength ? [NSString stringWithFormat:@"%@ dBm", self.signalStrength] : nil);
+    add(@"Manufacturer", self.deviceInfo[@"2A29"]);
+    add(@"Model", self.deviceInfo[@"2A24"]);
+    add(@"Serial", self.deviceInfo[@"2A25"]);
+    add(@"Firmware", self.deviceInfo[@"2A26"]);
+    add(@"Hardware", self.deviceInfo[@"2A27"]);
+    add(@"Software", self.deviceInfo[@"2A28"]);
+    add(@"Vendor / Product ID", self.deviceInfo[@"2A50"]);
+    add(@"Identifier", peripheral.identifier.UUIDString);
+    for (NSString* line in lines) {
+        // No action, so these show as informational (greyed) rows
+        [submenu addItemWithTitle:line action:nil keyEquivalent:@""];
+    }
+    return submenu;
+}
+
 - (void)refreshAvailablePeripherals {
     [self restoreLastSelectedPeripheralIfNeeded];
     // Rebuild the contents of the (persistent) dropdown menu each time we read the available peripherals
@@ -160,6 +199,10 @@
     
     // Add some extra meta controls to the menu
     [dropdown addItem:[NSMenuItem  separatorItem]];
+    if (self.selectedKeyboardPeripheral) {
+        NSMenuItem* detailsItem = [dropdown addItemWithTitle:@"Device Details" action:nil keyEquivalent:@""];
+        detailsItem.submenu = [self buildDetailsSubmenu];
+    }
     [dropdown addItemWithTitle:@"Manually Refresh Battery" action:@selector(initiateBatteryReading) keyEquivalent:@""];
     [dropdown addItemWithTitle:@"Refresh Devices List" action:@selector(refreshAvailablePeripherals) keyEquivalent:@""];
     [dropdown addItem:[NSMenuItem  separatorItem]];
@@ -182,7 +225,12 @@
 }
 
 - (void)initiateBatteryReading {
-    [self.selectedKeyboardPeripheral discoverServices:@[[CBUUID UUIDWithString:BT_BATTERY_SERVICE_UUID]]];
+    // Also pick up the Device Information service, and signal strength, for the details submenu
+    [self.selectedKeyboardPeripheral discoverServices:@[[CBUUID UUIDWithString:BT_BATTERY_SERVICE_UUID],
+                                                        [CBUUID UUIDWithString:BT_DEVICE_INFO_SERVICE_UUID]]];
+    if (self.selectedKeyboardPeripheral.state == CBPeripheralStateConnected) {
+        [self.selectedKeyboardPeripheral readRSSI];
+    }
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
@@ -252,6 +300,9 @@
         if ([service.UUID isEqual:[CBUUID UUIDWithString:BT_BATTERY_SERVICE_UUID]]) {
             [peripheral discoverCharacteristics:@[[CBUUID UUIDWithString:BT_BATTERY_LEVEL_CHARACTERISTIC]] forService:service];
         }
+        else if ([service.UUID isEqual:[CBUUID UUIDWithString:BT_DEVICE_INFO_SERVICE_UUID]]) {
+            [peripheral discoverCharacteristics:nil forService:service];
+        }
     }
 }
 
@@ -263,9 +314,39 @@
             }
         }
     }
+    else if ([service.UUID isEqual:[CBUUID UUIDWithString:BT_DEVICE_INFO_SERVICE_UUID]]) {
+        for (CBCharacteristic *characteristic in service.characteristics) {
+            if (characteristic.properties & CBCharacteristicPropertyRead) {
+                [peripheral readValueForCharacteristic:characteristic];
+            }
+        }
+    }
+}
+
+- (void)peripheral:(CBPeripheral *)peripheral didReadRSSI:(NSNumber *)RSSI error:(NSError *)error {
+    if (!error) {
+        self.signalStrength = RSSI;
+    }
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didUpdateValueForCharacteristic:(CBCharacteristic *)characteristic error:(NSError *)error {
+    if (!error && [characteristic.service.UUID isEqual:[CBUUID UUIDWithString:BT_DEVICE_INFO_SERVICE_UUID]] && characteristic.value) {
+        NSString* text = nil;
+        if ([characteristic.UUID isEqual:[CBUUID UUIDWithString:BT_PNP_ID_CHARACTERISTIC]]) {
+            // PnP ID layout: vendor ID source (1 byte), vendor ID (2), product ID (2), product version (2), little endian
+            if (characteristic.value.length >= 7) {
+                const uint8_t* b = characteristic.value.bytes;
+                text = [NSString stringWithFormat:@"0x%04X / 0x%04X", b[1] | (b[2] << 8), b[3] | (b[4] << 8)];
+            }
+        }
+        else {
+            text = [[NSString alloc] initWithData:characteristic.value encoding:NSUTF8StringEncoding];
+        }
+        if (text) {
+            self.deviceInfo[characteristic.UUID.UUIDString] = text;
+        }
+        return;
+    }
     if ([characteristic.UUID isEqual:[CBUUID UUIDWithString:BT_BATTERY_LEVEL_CHARACTERISTIC]]) {
         uint8_t batteryLevel = 0;
         [characteristic.value getBytes:&batteryLevel length:sizeof(batteryLevel)];
